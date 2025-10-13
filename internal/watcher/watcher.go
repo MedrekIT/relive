@@ -1,0 +1,104 @@
+package watcher
+
+import (
+	"fmt"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/MedrekIT/relive/internal/runner"
+)
+
+type filesCache struct {
+	files map[string]time.Time
+	mu    sync.Mutex
+}
+
+type Config struct {
+	Cmd            *exec.Cmd
+	ProjectPath    string
+	CheckInterval  time.Duration
+	SearchInterval time.Duration
+}
+
+func (cached *filesCache) searchNewFiles(projectPath string) error {
+	cached.mu.Lock()
+	defer cached.mu.Unlock()
+
+	err := filepath.Walk(projectPath, func(path string, info fs.FileInfo, err error) error {
+		if !info.IsDir() && filepath.Ext(path) == ".go" {
+			if _, ok := cached.files[path]; !ok {
+				if err != nil {
+					return fmt.Errorf("couldn't access path - %w", err)
+				}
+				if filepath.Ext(path) == ".go" {
+					cached.files[path] = info.ModTime()
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't walk through file path - %w", err)
+	}
+
+	return nil
+}
+
+func (cached *filesCache) watchForChanges() (bool, error) {
+	cached.mu.Lock()
+	defer cached.mu.Unlock()
+
+	for file, modTime := range cached.files {
+		fileInfo, err := os.Stat(file)
+		if err != nil {
+			if os.IsNotExist(err) {
+				delete(cached.files, file)
+			} else {
+				return false, fmt.Errorf("couldn't open cached file - %w", err)
+			}
+		} else {
+			if fileInfo.ModTime().After(modTime) {
+				cached.files[file] = fileInfo.ModTime()
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
+	changesTicker := time.NewTicker(cfg.CheckInterval)
+	filesTicker := time.NewTicker(cfg.SearchInterval)
+	cachedFiles := filesCache{
+		files: make(map[string]time.Time),
+	}
+	defer func() {
+		changesTicker.Stop()
+		filesTicker.Stop()
+	}()
+
+	for {
+		select {
+		case <-changesTicker.C:
+			changed, err := cachedFiles.watchForChanges()
+			if err != nil {
+				return err
+			}
+			if changed {
+				cfg.Cmd, err = runner.RerunCommand(cfg.ProjectPath, cfg.Cmd)
+				if err != nil {
+					return err
+				}
+			}
+		case <-filesTicker.C:
+			err := cachedFiles.searchNewFiles(cfg.ProjectPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+}

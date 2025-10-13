@@ -1,3 +1,3 @@
-module github.com/MedrekIT/arun
+module github.com/MedrekIT/relive
 
 go 1.25.1
