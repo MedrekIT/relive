@@ -18,7 +18,7 @@ func main() {
 		log.Fatal("\nUsage:\nrelive <project_path> OR relive (in project's directory)")
 	}
 
-	fmt.Println("Relive started")
+	fmt.Println("ReLive started")
 	projectPath := "."
 	var err error
 	if len(os.Args) == 2 {
@@ -47,5 +47,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("\nError: %v\n", err)
 	}
-	fmt.Println("Relive finished")
+	fmt.Println("ReLive finished")
 }
