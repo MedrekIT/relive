@@ -8,11 +8,11 @@ import (
 )
 
 func RerunCommand(projectPath string, cmd *exec.Cmd) (*exec.Cmd, error) {
-	cmd, err := StopCommand(cmd)
+	_, err := StopCommand(cmd)
 	if err != nil {
 		return &exec.Cmd{}, err
 	}
-	return RunCommand(projectPath, cmd)
+	return RunCommand(projectPath)
 }
 
 func StopCommand(cmd *exec.Cmd) (*exec.Cmd, error) {
@@ -20,14 +20,14 @@ func StopCommand(cmd *exec.Cmd) (*exec.Cmd, error) {
 		if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGINT); err != nil {
 			return &exec.Cmd{}, fmt.Errorf("couldn't kill the process - %w", err)
 		}
-		cmd.Wait()
+		_ = cmd.Wait()
 	}
 
 	return cmd, nil
 }
 
-func RunCommand(projectPath string, cmd *exec.Cmd) (*exec.Cmd, error) {
-	cmd = exec.Command("go", "run", "./...")
+func RunCommand(projectPath string) (*exec.Cmd, error) {
+	cmd := exec.Command("go", "run", "./...")
 	cmd.Dir = projectPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

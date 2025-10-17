@@ -25,7 +25,7 @@ It might not be the best tool possible for this purpose, but it's working, and a
 
 ```bash
 curl -sS https://webi.sh/golang | sh # Install Go
-go install github.com/MedrekIT/relive/cmd/relive@latest # Install repository as program for global execution
+go install github.com/MedrekIT/relive@latest # Install repository as program for global execution
 ```
 
 ## Usage

@@ -1,1 +1,6 @@
 /relive
+
+out
+vendor
+coverage.out
+report.json

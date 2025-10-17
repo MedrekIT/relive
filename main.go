@@ -4,25 +4,31 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"time"
 
 	"github.com/MedrekIT/relive/internal/runner"
 	"github.com/MedrekIT/relive/internal/watcher"
+
+	flag "github.com/spf13/pflag"
 )
 
+var verbose *bool = flag.BoolP("verbose", "v", false, "Shows ReLive logs")
+
 func main() {
-	if len(os.Args) < 1 || len(os.Args) > 2 {
-		log.Fatal("\nUsage:\nrelive <project_path> OR relive (in project's directory)")
+	flag.Parse()
+	if len(os.Args) < 1 {
+		log.Fatal("\nUsage:\nrelive <project_path> [OPTIONS] OR relive [OPTIONS] (in project's directory)")
 	}
 
-	fmt.Println("ReLive started")
+	if *verbose {
+		fmt.Println("ReLive started")
+	}
 	projectPath := "."
 	var err error
-	if len(os.Args) == 2 {
-		projectPath, err = filepath.Abs(os.Args[1])
+	if len(flag.Args()) == 1 {
+		projectPath, err = filepath.Abs(flag.Arg(0))
 		if err != nil {
 			log.Fatal("\nError: invalid file path\n\nUsage:\nrelive <project_path> OR relive (in project's directory)")
 		}
@@ -34,11 +40,16 @@ func main() {
 		SearchInterval: time.Second * 5,
 	}
 
-	cfg.Cmd, err = runner.RunCommand(cfg.ProjectPath, &exec.Cmd{})
+	cfg.Cmd, err = runner.RunCommand(cfg.ProjectPath)
 	if err != nil {
 		log.Fatalf("\nError: %v\n", err)
 	}
-	go cfg.InspectLoop(cfg.Cmd)
+	go func() {
+		err = cfg.InspectLoop(cfg.Cmd)
+		if err != nil {
+			log.Fatalf("\nError: %v\n", err)
+		}
+	}()
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
@@ -47,5 +58,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("\nError: %v\n", err)
 	}
-	fmt.Println("ReLive finished")
+	if *verbose {
+		fmt.Println("ReLive finished")
+	}
 }

@@ -24,10 +24,11 @@ type Config struct {
 	SearchInterval time.Duration
 }
 
-func (cached *filesCache) searchNewFiles(projectPath string) error {
+func (cached *filesCache) searchNewFiles(projectPath string) (bool, error) {
 	cached.mu.Lock()
 	defer cached.mu.Unlock()
 
+	newFile := false
 	err := filepath.Walk(projectPath, func(path string, info fs.FileInfo, err error) error {
 		if !info.IsDir() && filepath.Ext(path) == ".go" {
 			if _, ok := cached.files[path]; !ok {
@@ -36,22 +37,24 @@ func (cached *filesCache) searchNewFiles(projectPath string) error {
 				}
 				if filepath.Ext(path) == ".go" {
 					cached.files[path] = info.ModTime()
+					newFile = true
 				}
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("couldn't walk through file path - %w", err)
+		return false, fmt.Errorf("couldn't walk through file path - %w", err)
 	}
 
-	return nil
+	return newFile, nil
 }
 
 func (cached *filesCache) watchForChanges() (bool, error) {
 	cached.mu.Lock()
 	defer cached.mu.Unlock()
 
+	changes := false
 	for file, modTime := range cached.files {
 		fileInfo, err := os.Stat(file)
 		if err != nil {
@@ -63,11 +66,11 @@ func (cached *filesCache) watchForChanges() (bool, error) {
 		} else {
 			if fileInfo.ModTime().After(modTime) {
 				cached.files[file] = fileInfo.ModTime()
-				return true, nil
+				changes = true
 			}
 		}
 	}
-	return false, nil
+	return changes, nil
 }
 
 func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
@@ -84,20 +87,26 @@ func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
 	for {
 		select {
 		case <-changesTicker.C:
-			changed, err := cachedFiles.watchForChanges()
+			changes, err := cachedFiles.watchForChanges()
 			if err != nil {
 				return err
 			}
-			if changed {
+			if changes {
 				cfg.Cmd, err = runner.RerunCommand(cfg.ProjectPath, cfg.Cmd)
 				if err != nil {
 					return err
 				}
 			}
 		case <-filesTicker.C:
-			err := cachedFiles.searchNewFiles(cfg.ProjectPath)
+			changes, err := cachedFiles.searchNewFiles(cfg.ProjectPath)
 			if err != nil {
 				return err
+			}
+			if changes {
+				cfg.Cmd, err = runner.RerunCommand(cfg.ProjectPath, cfg.Cmd)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
