@@ -14,28 +14,34 @@ import (
 	flag "github.com/spf13/pflag"
 )
 
+var projectPath *string = flag.StringP("project", "p", os.Getenv("PWD"), "Define ReLive entrypoint")
 var verbose *bool = flag.BoolP("verbose", "v", false, "Shows ReLive logs")
 
 func main() {
 	flag.Parse()
+
 	if len(os.Args) < 1 {
-		log.Fatal("\nUsage:\nrelive <project_path> [OPTIONS] OR relive [OPTIONS] (in project's directory)")
+		log.Fatal("\nUsage:\nrelive [OPTIONS] [PATH] OR relive [OPTIONS] (in project's directory)")
 	}
 
 	if *verbose {
 		fmt.Println("ReLive started")
 	}
-	projectPath := "."
 	var err error
-	if len(flag.Args()) == 1 {
-		projectPath, err = filepath.Abs(flag.Arg(0))
-		if err != nil {
-			log.Fatal("\nError: invalid file path\n\nUsage:\nrelive <project_path> OR relive (in project's directory)")
-		}
+	*projectPath, err = filepath.Abs(*projectPath)
+	if err != nil {
+		log.Fatal("\nError: invalid file path\n\nUsage:\nrelive [OPTIONS] [PATH] OR relive [OPTIONS] (in project's directory)")
 	}
 
 	cfg := watcher.Config{
-		ProjectPath:    projectPath,
+		Flags: struct {
+			Verbose     bool
+			ProjectPath string
+		}{
+			Verbose:     *verbose,
+			ProjectPath: *projectPath,
+		},
+		ProjectPath:    *projectPath,
 		CheckInterval:  time.Millisecond * 500,
 		SearchInterval: time.Second * 5,
 	}
