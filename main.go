@@ -46,6 +46,10 @@ func main() {
 		SearchInterval: time.Second * 5,
 	}
 
+	cfg.Cmd, err = runner.RunCommand(cfg.ProjectPath)
+	if err != nil {
+		log.Fatalf("\nReLive error: %v\n", err)
+	}
 	go func() {
 		err = cfg.InspectLoop(cfg.Cmd)
 		if err != nil {
