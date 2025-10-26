@@ -30,7 +30,7 @@ func main() {
 	var err error
 	*projectPath, err = filepath.Abs(*projectPath)
 	if err != nil {
-		log.Fatal("\nError: invalid file path\n\nUsage:\nrelive [OPTIONS] [PATH] OR relive [OPTIONS] (in project's directory)")
+		log.Fatal("\nReLive error: invalid file path\n\nUsage:\nrelive [OPTIONS] [PATH] OR relive [OPTIONS] (in project's directory)")
 	}
 
 	cfg := watcher.Config{
@@ -46,14 +46,10 @@ func main() {
 		SearchInterval: time.Second * 5,
 	}
 
-	cfg.Cmd, err = runner.RunCommand(cfg.ProjectPath)
-	if err != nil {
-		log.Fatalf("\nError: %v\n", err)
-	}
 	go func() {
 		err = cfg.InspectLoop(cfg.Cmd)
 		if err != nil {
-			log.Fatalf("\nError: %v\n", err)
+			log.Fatalf("\nReLive error: %v\n", err)
 		}
 	}()
 
@@ -62,7 +58,7 @@ func main() {
 	<-ch
 	cfg.Cmd, err = runner.StopCommand(cfg.Cmd)
 	if err != nil {
-		log.Fatalf("\nError: %v\n", err)
+		log.Fatalf("\nReLive error: %v\n", err)
 	}
 	if *verbose {
 		fmt.Println("ReLive finished")

@@ -3,7 +3,6 @@ package watcher
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,7 +88,7 @@ func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
 		filesTicker.Stop()
 	}()
 
-	changes, err := cachedFiles.searchNewFiles(cfg.ProjectPath)
+	_, err := cachedFiles.searchNewFiles(cfg.ProjectPath)
 	if err != nil {
 		return err
 	}
@@ -97,13 +96,13 @@ func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
 	for {
 		select {
 		case <-changesTicker.C:
-			changes, err = cachedFiles.watchForChanges()
+			changes, err := cachedFiles.watchForChanges()
 			if err != nil {
 				return err
 			}
 			if changes {
 				if cfg.Flags.Verbose {
-					log.Println("Found changes in the project, restarting...")
+					fmt.Println("ReLive message - Found changes in the project, restarting...")
 				}
 				cfg.Cmd, err = runner.RerunCommand(cfg.ProjectPath, cfg.Cmd)
 				if err != nil {
@@ -111,13 +110,13 @@ func (cfg *Config) InspectLoop(cmd *exec.Cmd) error {
 				}
 			}
 		case <-filesTicker.C:
-			changes, err = cachedFiles.searchNewFiles(cfg.ProjectPath)
+			changes, err := cachedFiles.searchNewFiles(cfg.ProjectPath)
 			if err != nil {
 				return err
 			}
 			if changes {
 				if cfg.Flags.Verbose {
-					log.Println("Found new files in the project, restarting...")
+					fmt.Println("ReLive message - Found new files in the project, restarting...")
 				}
 				cfg.Cmd, err = runner.RerunCommand(cfg.ProjectPath, cfg.Cmd)
 				if err != nil {
